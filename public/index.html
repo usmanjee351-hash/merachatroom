@@ -149,20 +149,17 @@
     <div class="auth-pane active" id="pane-login">
       <input id="login-username" type="text" placeholder="Username" />
       <input id="login-password" type="password" placeholder="Password" />
-      <input id="login-room" type="text" placeholder="Room ka naam (e.g. general)" />
       <button class="primary" id="login-btn">Login &amp; Join</button>
     </div>
 
     <div class="auth-pane" id="pane-register">
       <input id="register-username" type="text" placeholder="Naya username (3-20 chars)" />
       <input id="register-password" type="password" placeholder="Password (kam az kam 6 chars)" />
-      <input id="register-room" type="text" placeholder="Room ka naam (e.g. general)" />
       <button class="primary" id="register-btn">Account Banayein &amp; Join</button>
     </div>
 
     <div class="auth-pane" id="pane-guest">
       <input id="guest-username" type="text" placeholder="Aap ka naam" />
-      <input id="guest-room" type="text" placeholder="Room ka naam (e.g. general)" />
       <button class="primary" id="guest-btn">Guest Ke Taur Par Join Karein</button>
     </div>
 
@@ -422,7 +419,7 @@
   document.getElementById('login-btn').addEventListener('click', async () => {
     const username = document.getElementById('login-username').value.trim();
     const password = document.getElementById('login-password').value;
-    pendingRoom = document.getElementById('login-room').value.trim() || 'general';
+    pendingRoom = 'general';
     try {
       const res = await fetch('/api/login', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -447,7 +444,7 @@
   document.getElementById('register-btn').addEventListener('click', async () => {
     const username = document.getElementById('register-username').value.trim();
     const password = document.getElementById('register-password').value;
-    pendingRoom = document.getElementById('register-room').value.trim() || 'general';
+    pendingRoom = 'general';
     try {
       const res = await fetch('/api/register', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -467,7 +464,7 @@
   // ---------- Guest ----------
   document.getElementById('guest-btn').addEventListener('click', () => {
     const username = document.getElementById('guest-username').value.trim() || ('Guest' + Math.floor(Math.random() * 1000));
-    const room = document.getElementById('guest-room').value.trim() || 'general';
+    const room = 'general';
     myUsername = username;
     authToken = null;
     myStyle = loadGuestStyle();
