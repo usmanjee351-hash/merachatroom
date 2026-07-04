@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="ur">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mera Chat Room</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --panel2: #1f232c;
+    --accent: #5b8cff; --accent2: #7c5bff;
+    --text: #e8eaf0; --muted: #8a8f9c;
+    --bubble-me: linear-gradient(135deg, #5b8cff, #7c5bff);
+    --bubble-other: #262b35;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg); color: var(--text); min-height: 100vh;
+    display: flex; align-items: center; justify-content: center; padding: 16px;
+  }
+
+  /* Auth screen */
+  #auth-screen {
+    background: var(--panel); padding: 36px; border-radius: 16px;
+    width: 360px; max-width: 100%; box-shadow: 0 10px 40px rgba(0,0,0,0.4); text-align: center;
+  }
+  #auth-screen h1 {
+    font-size: 22px; margin-bottom: 4px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .tabs { display: flex; gap: 6px; margin: 18px 0 20px; background: var(--panel2); border-radius: 10px; padding: 4px; }
+  .tab-btn { flex: 1; padding: 8px; border: none; background: transparent; color: var(--muted); border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; }
+  .tab-btn.active { background: var(--accent); color: white; }
+  .auth-pane { display: none; }
+  .auth-pane.active { display: block; }
+  input {
+    width: 100%; padding: 12px 14px; margin-bottom: 10px; border-radius: 10px;
+    border: 1px solid #2c313c; background: var(--panel2); color: var(--text); font-size: 14px; outline: none;
+  }
+  input:focus { border-color: var(--accent); }
+  button.primary {
+    width: 100%; padding: 12px; border: none; border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: white; font-weight: 600; font-size: 14px; cursor: pointer; margin-top: 4px;
+  }
+  button.primary:hover { opacity: 0.9; }
+  .auth-error { color: #ff6b6b; font-size: 12px; margin-top: 10px; min-height: 16px; }
+  .auth-note { font-size: 11px; color: var(--muted); margin-top: 14px; line-height: 1.5; }
+
+  /* Chat screen */
+  #chat-screen {
+    display: none; width: 1140px; max-width: 100%; height: 88vh;
+    background: var(--panel); border-radius: 16px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+  }
+  #chat-container { display: flex; height: 100%; }
+  #online-sidebar {
+    width: 230px; background: var(--panel2); padding: 18px 14px; display: flex; flex-direction: column;
+    border-left: 1px solid #262b35;
+  }
+  #online-sidebar h3 { font-size: 11px; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; letter-spacing: 0.5px; display:flex; justify-content:space-between; align-items:center; }
+  #inbox-btn { border: 1px solid #3a3f4b; background: transparent; color: var(--accent); border-radius: 6px; padding: 3px 8px; font-size: 11px; cursor: pointer; position: relative; }
+  #inbox-btn:hover { border-color: var(--accent); }
+  #inbox-badge { position:absolute; top:-6px; right:-6px; background:#ff6b6b; color:white; font-size:10px; border-radius:10px; padding:1px 5px; display:none; }
+  #online-list { list-style: none; padding: 0; margin: 0; flex: 1; overflow-y: auto; }
+  #online-list li {
+    padding: 8px 10px; border-radius: 8px; font-size: 13px; margin-bottom: 6px; background: var(--panel);
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+  }
+  #online-list li:hover { background: #21262f; }
+  #online-list li::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: #4ade80; flex-shrink: 0; }
+  #online-list .oname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #sidebar { width: 270px; background: var(--panel2); padding: 18px 14px; display: flex; flex-direction: column; border-right: 1px solid #262b35; }
+  #sidebar h3 { font-size: 11px; text-transform: uppercase; color: var(--muted); margin: 12px 0 8px; letter-spacing: 0.5px; }
+  #sidebar h3:first-child { margin-top: 0; }
+  #room-name { font-size: 15px; font-weight: 700; margin-bottom: 6px; word-break: break-word; }
+  #my-role-badge { display: inline-block; font-size: 11px; padding: 3px 8px; border-radius: 6px; margin-bottom: 8px; font-weight: 600; }
+  .role-owner { background: rgba(255,196,0,0.15); color: #ffc400; }
+  .role-admin { background: rgba(91,140,255,0.15); color: #5b8cff; }
+  .role-member { background: rgba(138,143,156,0.15); color: var(--muted); }
+  .role-guest { background: rgba(138,143,156,0.15); color: var(--muted); }
+
+  #user-list { list-style: none; padding: 0; margin: 0; max-height: 30vh; overflow-y: auto; }
+  #user-list li { padding: 8px 10px; border-radius: 8px; font-size: 13px; margin-bottom: 6px; background: var(--panel); }
+  .user-row { display: flex; align-items: center; gap: 6px; }
+  .user-row::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: #4ade80; flex-shrink: 0; }
+  .user-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .badge { font-size: 10px; padding: 1px 6px; border-radius: 5px; font-weight: 700; }
+  .badge-owner { background: rgba(255,196,0,0.15); color: #ffc400; }
+  .badge-admin { background: rgba(91,140,255,0.15); color: #5b8cff; }
+  .badge-guest { background: rgba(138,143,156,0.15); color: var(--muted); }
+
+  .user-actions { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; padding-left: 14px; }
+  .user-actions button {
+    font-size: 10.5px; padding: 4px 7px; border-radius: 6px; border: 1px solid #3a3f4b;
+    background: transparent; color: var(--muted); cursor: pointer;
+  }
+  .user-actions button:hover { border-color: var(--accent); color: var(--accent); }
+  .user-actions button.danger:hover { border-color: #ff6b6b; color: #ff6b6b; }
+
+  #owner-tools { margin-top: auto; padding-top: 10px; border-top: 1px solid #262b35; }
+  #owner-tools button, #leave-btn {
+    width: 100%; padding: 9px; border: 1px solid #3a3f4b; background: transparent; color: var(--muted);
+    border-radius: 8px; cursor: pointer; font-size: 12.5px; margin-top: 6px;
+  }
+  #owner-tools button:hover { color: var(--accent); border-color: var(--accent); }
+  #leave-btn:hover { color: #ff6b6b; border-color: #ff6b6b; }
+
+  #main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+  .msg { max-width: 70%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.4; word-wrap: break-word; }
+  .msg .sender { font-size: 11px; opacity: 0.7; margin-bottom: 3px; font-weight: 600; display: flex; gap: 6px; align-items: center; }
+  .msg.me { align-self: flex-end; background: var(--bubble-me); color: white; border-bottom-right-radius: 4px; }
+  .msg.other { align-self: flex-start; background: var(--bubble-other); border-bottom-left-radius: 4px; }
+  .msg.system { align-self: center; color: var(--muted); font-size: 12px; background: none; padding: 4px; text-align: center; }
+
+  #typing-indicator { height: 18px; padding: 0 20px; font-size: 12px; color: var(--muted); font-style: italic; }
+  #input-area { display: flex; padding: 16px 20px; gap: 10px; border-top: 1px solid #262b35; }
+  #msg-input { flex: 1; padding: 12px 16px; border-radius: 24px; border: 1px solid #2c313c; background: var(--panel2); color: var(--text); outline: none; font-size: 14px; }
+  #msg-input:focus { border-color: var(--accent); }
+  #send-btn { padding: 0 22px; border: none; border-radius: 24px; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: white; font-weight: 600; cursor: pointer; }
+  #send-btn:hover { opacity: 0.9; }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; z-index: 50; }
+  .modal-overlay.active { display: flex; }
+  .modal { background: var(--panel); border-radius: 14px; padding: 24px; width: 380px; max-width: 90vw; max-height: 80vh; overflow-y: auto; }
+  .modal h2 { font-size: 16px; margin-top: 0; }
+  .modal-close { float: right; background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; }
+  .ban-item { background: var(--panel2); padding: 10px; border-radius: 8px; margin-bottom: 8px; font-size: 12.5px; }
+  .ban-item button { margin-top: 6px; font-size: 11px; padding: 4px 8px; border-radius: 6px; border: 1px solid #3a3f4b; background: transparent; color: var(--muted); cursor: pointer; }
+  .ban-item button:hover { color: #4ade80; border-color: #4ade80; }
+
+  #messages::-webkit-scrollbar, #user-list::-webkit-scrollbar, .modal::-webkit-scrollbar { width: 6px; }
+  #messages::-webkit-scrollbar-thumb, #user-list::-webkit-scrollbar-thumb, .modal::-webkit-scrollbar-thumb { background: #2c313c; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+  <!-- AUTH SCREEN -->
+  <div id="auth-screen">
+    <h1>💬 Chat Room</h1>
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="login">Login</button>
+      <button class="tab-btn" data-tab="register">Register</button>
+      <button class="tab-btn" data-tab="guest">Guest</button>
+    </div>
+
+    <div class="auth-pane active" id="pane-login">
+      <input id="login-username" type="text" placeholder="Username" />
+      <input id="login-password" type="password" placeholder="Password" />
+      <input id="login-room" type="text" placeholder="Room ka naam (e.g. general)" />
+      <button class="primary" id="login-btn">Login &amp; Join</button>
+    </div>
+
+    <div class="auth-pane" id="pane-register">
+      <input id="register-username" type="text" placeholder="Naya username (3-20 chars)" />
+      <input id="register-password" type="password" placeholder="Password (kam az kam 6 chars)" />
+      <input id="register-room" type="text" placeholder="Room ka naam (e.g. general)" />
+      <button class="primary" id="register-btn">Account Banayein &amp; Join</button>
+    </div>
+
+    <div class="auth-pane" id="pane-guest">
+      <input id="guest-username" type="text" placeholder="Aap ka naam" />
+      <input id="guest-room" type="text" placeholder="Room ka naam (e.g. general)" />
+      <button class="primary" id="guest-btn">Guest Ke Taur Par Join Karein</button>
+    </div>
+
+    <div class="auth-error" id="auth-error"></div>
+    <div class="auth-note">Owner account se login karke aap kisi bhi device se apna control wapas le sakte hain.</div>
+  </div>
+
+  <!-- Force password reset screen -->
+  <div class="modal-overlay" id="reset-required-overlay">
+    <div class="modal">
+      <h2>Naya Password Set Karein</h2>
+      <p style="font-size:12.5px;color:var(--muted)">Aap ka password owner ne reset kar diya hai. Continue karne ke liye naya password set karein.</p>
+      <input id="new-password-input" type="password" placeholder="Naya password (kam az kam 6 chars)" />
+      <button class="primary" id="set-new-password-btn">Password Set Karein</button>
+      <div class="auth-error" id="reset-error"></div>
+    </div>
+  </div>
+
+  <!-- CHAT SCREEN -->
+  <div id="chat-screen">
+    <div id="chat-container">
+      <div id="sidebar">
+        <h3>Room</h3>
+        <div id="room-name">-</div>
+        <span id="my-role-badge"></span>
+
+        <h3>Room Members</h3>
+        <ul id="user-list"></ul>
+
+        <div id="owner-tools" style="display:none;">
+          <h3 style="margin-top:0;">Owner Tools</h3>
+          <button id="show-bans-btn">🚫 Banned List Dekhein</button>
+          <button id="change-my-password-btn">🔑 Apna Password Badlein</button>
+          <button id="owner-dm-monitor-btn">🕵️ Sab Private Messages Dekhein</button>
+        </div>
+
+        <button id="leave-btn">Room Chhodein</button>
+        <button id="customize-btn" style="margin-top:6px;width:100%;padding:9px;border:1px solid #3a3f4b;background:transparent;color:var(--muted);border-radius:8px;cursor:pointer;font-size:12.5px;">🎨 Naam/Message Style</button>
+      </div>
+      <div id="main">
+        <div id="messages"></div>
+        <div id="typing-indicator"></div>
+        <div id="input-area">
+          <input id="msg-input" type="text" placeholder="Message likhein..." autocomplete="off" />
+          <button id="send-btn">Bhejein</button>
+        </div>
+      </div>
+      <div id="online-sidebar">
+        <h3>Online Users <button id="inbox-btn">📥 Inbox<span id="inbox-badge"></span></button></h3>
+        <ul id="online-list"></ul>
+        <button id="my-profile-btn" style="margin-top:10px;width:100%;padding:9px;border:1px solid #3a3f4b;background:transparent;color:var(--muted);border-radius:8px;cursor:pointer;font-size:12.5px;">📍 Meri City Set Karein</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bans modal -->
+  <div class="modal-overlay" id="bans-overlay">
+    <div class="modal">
+      <button class="modal-close" id="close-bans-btn">✕</button>
+      <h2>Banned Users &amp; Networks</h2>
+      <div id="bans-usernames-list"></div>
+      <h3>Banned IPs / Networks</h3>
+      <div id="bans-ips-list"></div>
+      <h3>Banned Device Fingerprints</h3>
+      <div id="bans-fingerprints-list"></div>
+      <h3>Banned Device IDs</h3>
+      <div id="bans-devices-list"></div>
+    </div>
+  </div>
+
+  <!-- Change password modal -->
+  <div class="modal-overlay" id="change-pw-overlay">
+    <div class="modal">
+      <button class="modal-close" id="close-change-pw-btn">✕</button>
+      <h2>Password Badlein</h2>
+      <input id="cp-current" type="password" placeholder="Current password" />
+      <input id="cp-new" type="password" placeholder="Naya password" />
+      <button class="primary" id="cp-submit-btn">Update Karein</button>
+      <div class="auth-error" id="cp-error"></div>
+    </div>
+  </div>
+
+  <!-- Customize style modal -->
+  <div class="modal-overlay" id="style-overlay">
+    <div class="modal">
+      <button class="modal-close" id="close-style-btn">✕</button>
+      <h2>🎨 Apna Style Chunein</h2>
+
+      <p style="font-size:12.5px;color:var(--muted);margin-bottom:6px;">Aap ka naam</p>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+        <input type="color" id="style-name-color" value="#5b8cff" style="width:44px;height:36px;padding:2px;border-radius:8px;border:1px solid #2c313c;background:var(--panel2);cursor:pointer;" />
+        <label style="font-size:13px;display:flex;align-items:center;gap:6px;"><input type="checkbox" id="style-name-bold" checked /> Bold</label>
+      </div>
+
+      <p style="font-size:12.5px;color:var(--muted);margin-bottom:6px;">Message ka text</p>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+        <input type="color" id="style-msg-color" value="#e8eaf0" style="width:44px;height:36px;padding:2px;border-radius:8px;border:1px solid #2c313c;background:var(--panel2);cursor:pointer;" />
+        <label style="font-size:13px;display:flex;align-items:center;gap:6px;"><input type="checkbox" id="style-msg-bold" /> Bold</label>
+      </div>
+
+      <div id="style-preview" style="background:var(--panel2);padding:12px;border-radius:10px;margin-bottom:14px;">
+        <div id="style-preview-name" style="font-size:12px;margin-bottom:4px;">Aap ka naam</div>
+        <div id="style-preview-msg" style="font-size:14px;">Ye aisa dikhega aapka message.</div>
+      </div>
+
+      <button class="primary" id="save-style-btn">Save Karein</button>
+    </div>
+  </div>
+
+  <!-- Set my city modal -->
+  <div class="modal-overlay" id="set-city-overlay">
+    <div class="modal">
+      <button class="modal-close" id="close-set-city-btn">✕</button>
+      <h2>📍 Meri City</h2>
+      <p style="font-size:12.5px;color:var(--muted);margin-bottom:8px;">Sirf city ka naam — koi exact location nahi.</p>
+      <input id="my-city-input" type="text" placeholder="e.g. Lahore" maxlength="60" />
+      <button class="primary" id="save-city-btn">Save Karein</button>
+    </div>
+  </div>
+
+  <!-- Profile card modal (click a user in Online Users) -->
+  <div class="modal-overlay" id="profile-overlay">
+    <div class="modal">
+      <button class="modal-close" id="close-profile-btn">✕</button>
+      <h2 id="profile-name">-</h2>
+      <div id="profile-role" style="margin-bottom:8px;"></div>
+      <div id="profile-city" style="font-size:13px;color:var(--muted);margin-bottom:16px;"></div>
+      <button class="primary" id="profile-action-btn">💬 Private Message Bhejein</button>
+      <div id="profile-status" style="font-size:12px;color:var(--muted);margin-top:8px;"></div>
+    </div>
+  </div>
+
+  <!-- Incoming DM request toast -->
+  <div class="modal-overlay" id="dm-request-overlay">
+    <div class="modal">
+      <h2>📩 Private Message Request</h2>
+      <p id="dm-request-text" style="font-size:13.5px;"></p>
+      <div style="display:flex;gap:10px;margin-top:14px;">
+        <button class="primary" id="dm-request-accept-btn" style="flex:1;">Accept</button>
+        <button id="dm-request-decline-btn" style="flex:1;padding:12px;border:1px solid #3a3f4b;background:transparent;color:var(--muted);border-radius:10px;cursor:pointer;">Decline</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Inbox modal: list of open conversations -->
+  <div class="modal-overlay" id="inbox-overlay">
+    <div class="modal">
+      <button class="modal-close" id="close-inbox-btn">✕</button>
+      <h2>📥 Inbox</h2>
+      <div id="inbox-list"></div>
+    </div>
+  </div>
+
+  <!-- DM chat modal -->
+  <div class="modal-overlay" id="dm-chat-overlay">
+    <div class="modal" style="width:420px;display:flex;flex-direction:column;height:70vh;">
+      <button class="modal-close" id="close-dm-chat-btn">✕</button>
+      <h2 id="dm-chat-title" style="margin-bottom:10px;">-</h2>
+      <div id="dm-messages" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:4px 0;"></div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <input id="dm-msg-input" type="text" placeholder="Private message likhein..." style="margin-bottom:0;" />
+        <button class="primary" id="dm-send-btn" style="width:auto;padding:0 18px;margin-top:0;">Bhejein</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Owner: Private Messages monitor -->
+  <div class="modal-overlay" id="owner-dm-overlay">
+    <div class="modal" style="width:460px;">
+      <button class="modal-close" id="close-owner-dm-btn">✕</button>
+      <h2>🕵️ Sab Private Conversations (Owner Only)</h2>
+      <div id="owner-dm-list"></div>
+    </div>
+  </div>
+
+  <!-- Owner: view a specific DM thread (read-only) -->
+  <div class="modal-overlay" id="owner-dm-thread-overlay">
+    <div class="modal" style="width:420px;">
+      <button class="modal-close" id="close-owner-dm-thread-btn">✕</button>
+      <h2 id="owner-dm-thread-title">-</h2>
+      <div id="owner-dm-thread-messages" style="max-height:50vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+  </div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+  let authToken = localStorage.getItem('chat_token') || null;
+  let myUsername = localStorage.getItem('chat_username') || '';
+  let myRole = 'guest';
+  let currentRoom = '';
+  let pendingRoom = '';
+  let typingTimeout;
+
+  // ---------- Device fingerprint (best-effort extra ban layer) ----------
+  function getDeviceId() {
+    let id = localStorage.getItem('chat_device_id');
+    if (!id) {
+      id = (crypto.randomUUID ? crypto.randomUUID() : (Date.now() + '-' + Math.random().toString(36).slice(2)));
+      localStorage.setItem('chat_device_id', id);
+    }
+    return id;
+  }
+
+  function getCanvasFingerprint() {
+    try {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      ctx.textBaseline = 'top';
+      ctx.font = "14px 'Arial'";
+      ctx.fillStyle = '#f60';
+      ctx.fillRect(0, 0, 80, 20);
+      ctx.fillStyle = '#069';
+      ctx.fillText('fp-check-🔒', 2, 2);
+      const raw = canvas.toDataURL() + '|' + navigator.userAgent + '|' + screen.width + 'x' + screen.height +
+        '|' + (navigator.hardwareConcurrency || '') + '|' + Intl.DateTimeFormat().resolvedOptions().timeZone;
+      let hash = 0;
+      for (let i = 0; i < raw.length; i++) {
+        hash = ((hash << 5) - hash + raw.charCodeAt(i)) | 0;
+      }
+      return 'fp_' + Math.abs(hash).toString(36);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  const deviceId = getDeviceId();
+  const fingerprint = getCanvasFingerprint();
+
+  function defaultStyle() {
+    return { nameColor: '#5b8cff', nameBold: true, msgColor: '#e8eaf0', msgBold: false };
+  }
+  function loadGuestStyle() {
+    try {
+      const saved = JSON.parse(localStorage.getItem('chat_guest_style') || 'null');
+      return saved || defaultStyle();
+    } catch (e) { return defaultStyle(); }
+  }
+  let myStyle = defaultStyle();
+
+  // ---------- Tabs ----------
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.auth-pane').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('pane-' + btn.dataset.tab).classList.add('active');
+      document.getElementById('auth-error').textContent = '';
+    });
+  });
+
+  function showAuthError(msg) {
+    document.getElementById('auth-error').textContent = msg;
+  }
+
+  // ---------- Login ----------
+  document.getElementById('login-btn').addEventListener('click', async () => {
+    const username = document.getElementById('login-username').value.trim();
+    const password = document.getElementById('login-password').value;
+    pendingRoom = document.getElementById('login-room').value.trim() || 'general';
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, fingerprint, deviceId })
+      });
+      const data = await res.json();
+      if (!res.ok) return showAuthError(data.error || 'Login nahi ho saka.');
+      authToken = data.token;
+      myUsername = data.username;
+      myStyle = data.style || defaultStyle();
+      localStorage.setItem('chat_token', authToken);
+      localStorage.setItem('chat_username', myUsername);
+      if (data.mustResetPassword) {
+        document.getElementById('reset-required-overlay').classList.add('active');
+      } else {
+        joinWithToken();
+      }
+    } catch (e) { showAuthError('Server se connect nahi ho saka.'); }
+  });
+
+  // ---------- Register ----------
+  document.getElementById('register-btn').addEventListener('click', async () => {
+    const username = document.getElementById('register-username').value.trim();
+    const password = document.getElementById('register-password').value;
+    pendingRoom = document.getElementById('register-room').value.trim() || 'general';
+    try {
+      const res = await fetch('/api/register', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, fingerprint, deviceId })
+      });
+      const data = await res.json();
+      if (!res.ok) return showAuthError(data.error || 'Register nahi ho saka.');
+      authToken = data.token;
+      myUsername = data.username;
+      myStyle = data.style || defaultStyle();
+      localStorage.setItem('chat_token', authToken);
+      localStorage.setItem('chat_username', myUsername);
+      joinWithToken();
+    } catch (e) { showAuthError('Server se connect nahi ho saka.'); }
+  });
+
+  // ---------- Guest ----------
+  document.getElementById('guest-btn').addEventListener('click', () => {
+    const username = document.getElementById('guest-username').value.trim() || ('Guest' + Math.floor(Math.random() * 1000));
+    const room = document.getElementById('guest-room').value.trim() || 'general';
+    myUsername = username;
+    authToken = null;
+    myStyle = loadGuestStyle();
+    localStorage.removeItem('chat_token');
+    socket.emit('join_room', { room, username, isGuest: true, fingerprint, deviceId, style: myStyle });
+  });
+
+  function joinWithToken() {
+    socket.emit('join_room', { room: pendingRoom, token: authToken, fingerprint, deviceId, style: myStyle });
+  }
+
+  // Auto-rejoin if we already have a saved token (optional convenience — still requires room name so skip auto-room-join)
+
+  // ---------- Force password reset ----------
+  document.getElementById('set-new-password-btn').addEventListener('click', async () => {
+    const newPassword = document.getElementById('new-password-input').value;
+    try {
+      const res = await fetch('/api/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+        body: JSON.stringify({ newPassword })
+      });
+      const data = await res.json();
+      if (!res.ok) { document.getElementById('reset-error').textContent = data.error || 'Masla hua.'; return; }
+      document.getElementById('reset-required-overlay').classList.remove('active');
+      joinWithToken();
+    } catch (e) { document.getElementById('reset-error').textContent = 'Server se connect nahi ho saka.'; }
+  });
+
+  // ---------- Socket events ----------
+  socket.on('join_error', (err) => {
+    if (err.reason === 'kicked' && err.remainingMs) {
+      const mins = Math.ceil(err.remainingMs / 60000);
+      showAuthError(`Aap kick hain. ${mins} minute baad dobara koshish karein.`);
+      setTimeout(() => { showAuthError(''); }, 3000);
+    } else if (err.reason === 'device_banned' || err.reason === 'banned') {
+      showAuthError('Ye account/device/network block hai. Sirf owner unban kar sakta hai.');
+    } else {
+      showAuthError(err.message || 'Join nahi ho saka.');
+    }
+  });
+
+  socket.on('joined', ({ room, username, role, style }) => {
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('chat-screen').style.display = 'block';
+    currentRoom = room; myUsername = username; myRole = role;
+    if (style) myStyle = style;
+    document.getElementById('room-name').textContent = '# ' + room;
+    updateRoleBadge();
+    document.getElementById('messages').innerHTML = '';
+    document.getElementById('owner-tools').style.display = (myRole === 'owner') ? 'block' : 'none';
+  });
+
+  socket.on('role_updated', ({ role }) => {
+    myRole = role;
+    updateRoleBadge();
+    document.getElementById('owner-tools').style.display = (myRole === 'owner') ? 'block' : 'none';
+  });
+
+  socket.on('kicked', ({ minutes, banned, by }) => {
+    if (banned) alert(`Aapko permanently block kar diya gaya hai (by ${by}).`);
+    else alert(`Aapko ${minutes} minute ke liye kick kar diya gaya hai (by ${by}).`);
+    localStorage.removeItem('chat_token');
+    window.location.reload();
+  });
+
+  socket.on('history', (history) => { history.forEach(addMessage); });
+  socket.on('chat_message', (msg) => addMessage(msg));
+
+  socket.on('system_message', (text) => {
+    const div = document.createElement('div');
+    div.className = 'msg system';
+    div.textContent = text;
+    document.getElementById('messages').appendChild(div);
+    scrollToBottom();
+  });
+
+  socket.on('user_list', (users) => {
+    const me = users.find(u => u.username === myUsername);
+    if (me) { myRole = me.role; updateRoleBadge(); document.getElementById('owner-tools').style.display = (myRole === 'owner') ? 'block' : 'none'; }
+
+    const list = document.getElementById('user-list');
+    list.innerHTML = '';
+    users.forEach(u => {
+      const li = document.createElement('li');
+      const row = document.createElement('div');
+      row.className = 'user-row';
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'user-name';
+      nameSpan.textContent = u.username + (u.username === myUsername ? ' (aap)' : '');
+      if (u.style && u.style.nameColor) nameSpan.style.color = u.style.nameColor;
+      if (u.style && u.style.nameBold) nameSpan.style.fontWeight = '800';
+      row.appendChild(nameSpan);
+
+      if (u.role === 'owner') { row.appendChild(makeBadge('badge-owner', '👑 Owner')); }
+      else if (u.role === 'admin') { row.appendChild(makeBadge('badge-admin', '🛡️ Admin')); }
+      else if (u.isGuest) { row.appendChild(makeBadge('badge-guest', 'Guest')); }
+
+      li.appendChild(row);
+
+      if (u.username !== myUsername && u.role !== 'owner') {
+        const actions = document.createElement('div');
+        actions.className = 'user-actions';
+
+        if (myRole === 'owner') {
+          const roleBtn = document.createElement('button');
+          roleBtn.textContent = u.role === 'admin' ? 'Admin Hataein' : 'Admin Banayein';
+          roleBtn.onclick = () => socket.emit(u.role === 'admin' ? 'remove_admin' : 'make_admin', { targetUsername: u.username });
+          actions.appendChild(roleBtn);
+
+          const resetBtn = document.createElement('button');
+          resetBtn.textContent = 'Password Reset';
+          resetBtn.onclick = () => socket.emit('reset_password', { targetUsername: u.username });
+          actions.appendChild(resetBtn);
+
+          const banBtn = document.createElement('button');
+          banBtn.className = 'danger';
+          banBtn.textContent = 'Ban';
+          banBtn.onclick = () => {
+            if (confirm(`${u.username} ko permanently block karein? (naam + network dono)`)) {
+              socket.emit('ban_user', { targetUsername: u.username, reason: '' });
+            }
+          };
+          actions.appendChild(banBtn);
+        }
+
+        if (myRole === 'owner' || (myRole === 'admin' && u.role !== 'admin')) {
+          const kickBtn = document.createElement('button');
+          kickBtn.className = 'danger';
+          kickBtn.textContent = 'Kick';
+          kickBtn.onclick = () => {
+            const mins = prompt(`${u.username} ko kitne minute ke liye kick karein?`, '10');
+            if (mins) socket.emit('kick_user', { targetUsername: u.username, minutes: parseInt(mins, 10) });
+          };
+          actions.appendChild(kickBtn);
+        }
+
+        if (actions.children.length > 0) li.appendChild(actions);
+      }
+      list.appendChild(li);
+    });
+  });
+
+  socket.on('action_error', (err) => alert(err.message));
+
+  socket.on('password_reset_result', ({ targetUsername, tempPassword }) => {
+    alert(`${targetUsername} ka naya temporary password: ${tempPassword}\n\nYe unhein bata dein — login karte hi unse naya password set karwaya jayega.`);
+  });
+
+  socket.on('ban_list', (data) => renderBanList(data));
+
+  socket.on('typing', (username) => {
+    document.getElementById('typing-indicator').textContent = `${username} likh raha hai...`;
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => { document.getElementById('typing-indicator').textContent = ''; }, 1500);
+  });
+
+  function makeBadge(cls, text) {
+    const b = document.createElement('span');
+    b.className = 'badge ' + cls;
+    b.textContent = text;
+    return b;
+  }
+
+  function updateRoleBadge() {
+    const el = document.getElementById('my-role-badge');
+    el.className = 'role-' + myRole;
+    el.textContent = myRole === 'owner' ? '👑 Aap Owner Hain' : myRole === 'admin' ? '🛡️ Aap Admin Hain' : myRole === 'guest' ? '👤 Guest' : '👤 Member';
+  }
+
+  function addMessage(msg) {
+    const div = document.createElement('div');
+    const isMe = msg.username === myUsername;
+    div.className = 'msg ' + (isMe ? 'me' : 'other');
+    let roleTag = msg.role === 'owner' ? ' 👑' : msg.role === 'admin' ? ' 🛡️' : '';
+
+    const style = msg.style || {};
+    const nameColor = style.nameColor || '#5b8cff';
+    const nameBoldStyle = style.nameBold ? 'font-weight:800;' : 'font-weight:600;';
+    const msgColor = style.msgColor || null;
+    const msgBoldStyle = style.msgBold ? 'font-weight:700;' : '';
+
+    const nameHtml = isMe ? '' : `<div class="sender" style="color:${nameColor};${nameBoldStyle}">${escapeHtml(msg.username)}${roleTag}</div>`;
+    // Don't override the colored gradient bubble background text color for "me" bubbles unless msgColor explicitly differs from default
+    const textStyleParts = [];
+    if (msgBoldStyle) textStyleParts.push(msgBoldStyle);
+    if (msgColor && !isMe) textStyleParts.push(`color:${msgColor};`);
+    const textSpanStyle = textStyleParts.length ? ` style="${textStyleParts.join('')}"` : '';
+
+    div.innerHTML = nameHtml + `<span${textSpanStyle}>${escapeHtml(msg.text)}</span>`;
+    document.getElementById('messages').appendChild(div);
+    scrollToBottom();
+  }
+
+  function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+  function scrollToBottom() { const m = document.getElementById('messages'); m.scrollTop = m.scrollHeight; }
+
+  document.getElementById('send-btn').addEventListener('click', sendMessage);
+  document.getElementById('msg-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') sendMessage(); else socket.emit('typing');
+  });
+  function sendMessage() {
+    const input = document.getElementById('msg-input');
+    const text = input.value.trim();
+    if (!text) return;
+    socket.emit('chat_message', text);
+    input.value = '';
+  }
+
+  document.getElementById('leave-btn').addEventListener('click', () => window.location.reload());
+
+  // ---------- Owner tools: bans modal ----------
+  document.getElementById('show-bans-btn').addEventListener('click', () => {
+    socket.emit('get_bans');
+    document.getElementById('bans-overlay').classList.add('active');
+  });
+  document.getElementById('close-bans-btn').addEventListener('click', () => document.getElementById('bans-overlay').classList.remove('active'));
+
+  function renderBanList({ usernames, ips, fingerprints, deviceIds }) {
+    const uList = document.getElementById('bans-usernames-list');
+    uList.innerHTML = usernames.length ? '' : '<p style="color:var(--muted);font-size:12px;">Koi banned username nahi.</p>';
+    usernames.forEach(b => {
+      const div = document.createElement('div');
+      div.className = 'ban-item';
+      div.innerHTML = `<b>${escapeHtml(b.username)}</b><br><button>Unban</button>`;
+      div.querySelector('button').onclick = () => socket.emit('unban_user', { targetUsername: b.username });
+      uList.appendChild(div);
+    });
+
+    const iList = document.getElementById('bans-ips-list');
+    iList.innerHTML = ips.length ? '' : '<p style="color:var(--muted);font-size:12px;">Koi banned network nahi.</p>';
+    ips.forEach(b => {
+      const div = document.createElement('div');
+      div.className = 'ban-item';
+      div.innerHTML = `<b>${escapeHtml(b.ip)}</b>${b.relatedUsername ? ' (' + escapeHtml(b.relatedUsername) + ')' : ''}<br><button>Unban</button>`;
+      div.querySelector('button').onclick = () => socket.emit('unban_ip', { ip: b.ip });
+      iList.appendChild(div);
+    });
+
+    const fList = document.getElementById('bans-fingerprints-list');
+    fList.innerHTML = (fingerprints && fingerprints.length) ? '' : '<p style="color:var(--muted);font-size:12px;">Koi banned device fingerprint nahi.</p>';
+    (fingerprints || []).forEach(b => {
+      const div = document.createElement('div');
+      div.className = 'ban-item';
+      div.innerHTML = `<b>${escapeHtml(b.fingerprint)}</b>${b.relatedUsername ? ' (' + escapeHtml(b.relatedUsername) + ')' : ''}<br><button>Unban</button>`;
+      div.querySelector('button').onclick = () => socket.emit('unban_fingerprint', { fingerprint: b.fingerprint });
+      fList.appendChild(div);
+    });
+
+    const dList = document.getElementById('bans-devices-list');
+    dList.innerHTML = (deviceIds && deviceIds.length) ? '' : '<p style="color:var(--muted);font-size:12px;">Koi banned device ID nahi.</p>';
+    (deviceIds || []).forEach(b => {
+      const div = document.createElement('div');
+      div.className = 'ban-item';
+      div.innerHTML = `<b>${escapeHtml(b.deviceId)}</b>${b.relatedUsername ? ' (' + escapeHtml(b.relatedUsername) + ')' : ''}<br><button>Unban</button>`;
+      div.querySelector('button').onclick = () => socket.emit('unban_device', { deviceId: b.deviceId });
+      dList.appendChild(div);
+    });
+  }
+
+  // ---------- Owner tools: change own password ----------
+  document.getElementById('change-my-password-btn').addEventListener('click', () => document.getElementById('change-pw-overlay').classList.add('active'));
+  document.getElementById('close-change-pw-btn').addEventListener('click', () => document.getElementById('change-pw-overlay').classList.remove('active'));
+  document.getElementById('cp-submit-btn').addEventListener('click', async () => {
+    const currentPassword = document.getElementById('cp-current').value;
+    const newPassword = document.getElementById('cp-new').value;
+    try {
+      const res = await fetch('/api/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+        body: JSON.stringify({ currentPassword, newPassword })
+      });
+      const data = await res.json();
+      if (!res.ok) { document.getElementById('cp-error').textContent = data.error || 'Masla hua.'; return; }
+      document.getElementById('cp-error').textContent = '';
+      alert('Password update ho gaya.');
+      document.getElementById('change-pw-overlay').classList.remove('active');
+    } catch (e) { document.getElementById('cp-error').textContent = 'Server se connect nahi ho saka.'; }
+  });
+
+  // ---------- Customize name/message style ----------
+  const styleOverlay = document.getElementById('style-overlay');
+  const nameColorInput = document.getElementById('style-name-color');
+  const nameBoldInput = document.getElementById('style-name-bold');
+  const msgColorInput = document.getElementById('style-msg-color');
+  const msgBoldInput = document.getElementById('style-msg-bold');
+  const previewName = document.getElementById('style-preview-name');
+  const previewMsg = document.getElementById('style-preview-msg');
+
+  function updateStylePreview() {
+    previewName.style.color = nameColorInput.value;
+    previewName.style.fontWeight = nameBoldInput.checked ? '800' : '600';
+    previewMsg.style.color = msgColorInput.value;
+    previewMsg.style.fontWeight = msgBoldInput.checked ? '700' : '400';
+  }
+  [nameColorInput, nameBoldInput, msgColorInput, msgBoldInput].forEach(el => el.addEventListener('input', updateStylePreview));
+
+  document.getElementById('customize-btn').addEventListener('click', () => {
+    nameColorInput.value = myStyle.nameColor || '#5b8cff';
+    nameBoldInput.checked = !!myStyle.nameBold;
+    msgColorInput.value = myStyle.msgColor || '#e8eaf0';
+    msgBoldInput.checked = !!myStyle.msgBold;
+    updateStylePreview();
+    styleOverlay.classList.add('active');
+  });
+  document.getElementById('close-style-btn').addEventListener('click', () => styleOverlay.classList.remove('active'));
+
+  document.getElementById('save-style-btn').addEventListener('click', () => {
+    myStyle = {
+      nameColor: nameColorInput.value,
+      nameBold: nameBoldInput.checked,
+      msgColor: msgColorInput.value,
+      msgBold: msgBoldInput.checked
+    };
+    socket.emit('update_style', myStyle);
+    if (!authToken) localStorage.setItem('chat_guest_style', JSON.stringify(myStyle));
+    styleOverlay.classList.remove('active');
+  });
+
+  socket.on('style_saved', (style) => { myStyle = style; });
+
+  // ================= Private Messaging =================
+  let onlineUsersData = [];
+  let activeDmWith = null; // username currently open in dm-chat modal
+  let myCity = '';
+
+  socket.on('online_users_update', (list) => {
+    onlineUsersData = list;
+    renderOnlineList();
+  });
+
+  function renderOnlineList() {
+    const ul = document.getElementById('online-list');
+    ul.innerHTML = '';
+    onlineUsersData
+      .filter(u => u.username !== myUsername)
+      .forEach(u => {
+        const li = document.createElement('li');
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'oname';
+        nameSpan.textContent = u.username;
+        if (u.style && u.style.nameColor) nameSpan.style.color = u.style.nameColor;
+        if (u.style && u.style.nameBold) nameSpan.style.fontWeight = '800';
+        li.appendChild(nameSpan);
+        if (u.role === 'owner') li.appendChild(makeBadge('badge-owner', '👑'));
+        else if (u.role === 'admin') li.appendChild(makeBadge('badge-admin', '🛡️'));
+        li.addEventListener('click', () => openProfile(u));
+        ul.appendChild(li);
+      });
+  }
+
+  function openProfile(u) {
+    document.getElementById('profile-name').textContent = u.username;
+    document.getElementById('profile-role').innerHTML =
+      u.role === 'owner' ? '<span class="badge badge-owner">👑 Owner</span>' :
+      u.role === 'admin' ? '<span class="badge badge-admin">🛡️ Admin</span>' :
+      u.isGuest ? '<span class="badge badge-guest">Guest</span>' : '';
+    document.getElementById('profile-city').textContent = u.city ? ('📍 ' + u.city) : 'Location set nahi ki.';
+    document.getElementById('profile-status').textContent = '';
+    const actionBtn = document.getElementById('profile-action-btn');
+    actionBtn.textContent = myRole === 'owner' ? '💬 Direct Message Bhejein (Owner)' : '💬 Private Message Request Bhejein';
+    actionBtn.onclick = () => {
+      socket.emit('send_dm_request', { toUsername: u.username });
+      document.getElementById('profile-status').textContent = myRole === 'owner' ? 'Conversation khul rahi hai...' : 'Request bhej di gayi, unke accept karne ka intezar karein.';
+    };
+    document.getElementById('profile-overlay').classList.add('active');
+  }
+  document.getElementById('close-profile-btn').addEventListener('click', () => document.getElementById('profile-overlay').classList.remove('active'));
+
+  socket.on('dm_request_sent', ({ to }) => {
+    document.getElementById('profile-status').textContent = `Request "${to}" ko bhej di gayi.`;
+  });
+
+  socket.on('dm_request_received', ({ from }) => {
+    document.getElementById('dm-request-text').textContent = `${from} ne aapko private message karne ki request bheji hai.`;
+    document.getElementById('dm-request-accept-btn').onclick = () => {
+      socket.emit('accept_dm_request', { fromUsername: from });
+      document.getElementById('dm-request-overlay').classList.remove('active');
+    };
+    document.getElementById('dm-request-decline-btn').onclick = () => {
+      socket.emit('decline_dm_request', { fromUsername: from });
+      document.getElementById('dm-request-overlay').classList.remove('active');
+    };
+    document.getElementById('dm-request-overlay').classList.add('active');
+  });
+
+  socket.on('dm_request_declined', ({ by }) => {
+    alert(`${by} ne aapki private message request decline kar di.`);
+  });
+
+  socket.on('dm_conversation_opened', ({ convKey, withUsername }) => {
+    document.getElementById('profile-overlay').classList.remove('active');
+    openDmChat(withUsername);
+  });
+
+  function openDmChat(withUsername) {
+    activeDmWith = withUsername;
+    document.getElementById('dm-chat-title').textContent = '💬 ' + withUsername;
+    document.getElementById('dm-messages').innerHTML = '';
+    socket.emit('get_dm_thread', { withUsername });
+    document.getElementById('dm-chat-overlay').classList.add('active');
+  }
+  document.getElementById('close-dm-chat-btn').addEventListener('click', () => {
+    document.getElementById('dm-chat-overlay').classList.remove('active');
+    activeDmWith = null;
+  });
+
+  socket.on('dm_thread', ({ withUsername, messages }) => {
+    if (activeDmWith !== withUsername) return;
+    const box = document.getElementById('dm-messages');
+    box.innerHTML = '';
+    messages.forEach(m => appendDmMessage(m));
+  });
+
+  socket.on('dm_message', ({ msg }) => {
+    const other = msg.from === myUsername ? activeDmWith : msg.from;
+    // Refresh inbox badge/list regardless of whether the window is open
+    refreshInboxPreviewSilently();
+    if (activeDmWith && (msg.from === activeDmWith || msg.from === myUsername)) {
+      appendDmMessage(msg);
+    } else if (msg.from !== myUsername) {
+      showInboxBadge();
+    }
+  });
+
+  function appendDmMessage(m) {
+    const box = document.getElementById('dm-messages');
+    const div = document.createElement('div');
+    const isMe = m.from === myUsername;
+    div.className = 'msg ' + (isMe ? 'me' : 'other');
+    div.style.maxWidth = '85%';
+    const style = m.style || {};
+    const nameColor = style.nameColor || '#5b8cff';
+    const nameBoldStyle = style.nameBold ? 'font-weight:800;' : 'font-weight:600;';
+    const nameHtml = isMe ? '' : `<div class="sender" style="color:${nameColor};${nameBoldStyle}">${escapeHtml(m.from)}</div>`;
+    const msgStyleParts = [];
+    if (style.msgBold) msgStyleParts.push('font-weight:700;');
+    if (style.msgColor && !isMe) msgStyleParts.push(`color:${style.msgColor};`);
+    const spanStyle = msgStyleParts.length ? ` style="${msgStyleParts.join('')}"` : '';
+    div.innerHTML = nameHtml + `<span${spanStyle}>${escapeHtml(m.text)}</span>`;
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  document.getElementById('dm-send-btn').addEventListener('click', sendDmMessage);
+  document.getElementById('dm-msg-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendDmMessage(); });
+  function sendDmMessage() {
+    const input = document.getElementById('dm-msg-input');
+    const text = input.value.trim();
+    if (!text || !activeDmWith) return;
+    socket.emit('send_dm_message', { toUsername: activeDmWith, text });
+    input.value = '';
+  }
+
+  function showInboxBadge() {
+    const badge = document.getElementById('inbox-badge');
+    badge.textContent = '•';
+    badge.style.display = 'inline-block';
+  }
+  function refreshInboxPreviewSilently() {
+    // If inbox modal happens to be open, keep it live-updated
+    if (document.getElementById('inbox-overlay').classList.contains('active')) {
+      socket.emit('get_my_dm_conversations');
+    }
+  }
+
+  document.getElementById('inbox-btn').addEventListener('click', () => {
+    document.getElementById('inbox-badge').style.display = 'none';
+    socket.emit('get_my_dm_conversations');
+    document.getElementById('inbox-overlay').classList.add('active');
+  });
+  document.getElementById('close-inbox-btn').addEventListener('click', () => document.getElementById('inbox-overlay').classList.remove('active'));
+
+  socket.on('my_dm_conversations', (list) => {
+    const container = document.getElementById('inbox-list');
+    container.innerHTML = list.length ? '' : '<p style="color:var(--muted);font-size:12.5px;">Abhi koi private conversation nahi hai.</p>';
+    list.forEach(c => {
+      const div = document.createElement('div');
+      div.className = 'ban-item';
+      div.style.cursor = 'pointer';
+      div.innerHTML = `<b>${escapeHtml(c.withUsername)}</b><br><span style="color:var(--muted);font-size:11.5px;">${escapeHtml(c.lastMessage || '')}</span>`;
+      div.onclick = () => {
+        document.getElementById('inbox-overlay').classList.remove('active');
+        openDmChat(c.withUsername);
+      };
+      container.appendChild(div);
+    });
+  });
+
+  // ---------- My profile: set city ----------
+  document.getElementById('my-profile-btn').addEventListener('click', () => {
+    document.getElementById('my-city-input').value = myCity;
+    document.getElementById('set-city-overlay').classList.add('active');
+  });
+  document.getElementById('close-set-city-btn').addEventListener('click', () => document.getElementById('set-city-overlay').classList.remove('active'));
+  document.getElementById('save-city-btn').addEventListener('click', () => {
+    myCity = document.getElementById('my-city-input').value.trim();
+    socket.emit('set_profile', { city: myCity });
+    document.getElementById('set-city-overlay').classList.remove('active');
+  });
+
+  // ---------- Owner: monitor all private messages ----------
+  const ownerDmBtn = document.getElementById('owner-dm-monitor-btn');
+  if (ownerDmBtn) {
+    ownerDmBtn.addEventListener('click', () => {
+      socket.emit('owner_list_dm_conversations');
+      document.getElementById('owner-dm-overlay').classList.add('active');
+    });
+  }
+  document.getElementById('close-owner-dm-btn').addEventListener('click', () => document.getElementById('owner-dm-overlay').classList.remove('active'));
+
+  socket.on('owner_dm_conversations_list', (list) => {
+    const container = document.getElementById('owner-dm-list');
+    container.innerHTML = list.length ? '' : '<p style="color:var(--muted);font-size:12.5px;">Koi private conversation nahi hai.</p>';
+    list.forEach(c => {
+      const div = document.createElement('div');
+      div.className = 'ban-item';
+      div.innerHTML = `<b>${escapeHtml(c.participants[0])}</b> ↔ <b>${escapeHtml(c.participants[1])}</b><br><span style="color:var(--muted);font-size:11.5px;">${c.messageCount} messages</span><br><button>View Thread</button>`;
+      div.querySelector('button').onclick = () => {
+        socket.emit('owner_get_dm_thread', { convKey: c.convKey });
+      };
+      container.appendChild(div);
+    });
+  });
+
+  document.getElementById('close-owner-dm-thread-btn').addEventListener('click', () => document.getElementById('owner-dm-thread-overlay').classList.remove('active'));
+
+  socket.on('owner_dm_thread', ({ participants, messages }) => {
+    document.getElementById('owner-dm-thread-title').textContent = `${participants[0]} ↔ ${participants[1]}`;
+    const box = document.getElementById('owner-dm-thread-messages');
+    box.innerHTML = '';
+    messages.forEach(m => {
+      const div = document.createElement('div');
+      div.className = 'msg ' + 'other';
+      div.style.maxWidth = '100%';
+      div.innerHTML = `<div class="sender">${escapeHtml(m.from)}</div><span>${escapeHtml(m.text)}</span>`;
+      box.appendChild(div);
+    });
+    document.getElementById('owner-dm-overlay').classList.remove('active');
+    document.getElementById('owner-dm-thread-overlay').classList.add('active');
+  });
+</script>
+</body>
+</html>
